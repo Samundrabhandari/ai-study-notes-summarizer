@@ -1,0 +1,829 @@
+"""
+AI Study Notes Summarizer
+=========================
+A Streamlit web app that uses OpenAI to turn study notes into
+summaries, key points, important terms, quiz questions, and flashcards.
+
+Author: Student Project
+Tech: Python · Streamlit · OpenAI API · python-dotenv
+"""
+
+import os
+import json
+import streamlit as st
+from openai import OpenAI
+from dotenv import load_dotenv
+
+# ─── Load environment variables from .env file ───
+load_dotenv()
+
+# ─── Page Configuration ───
+st.set_page_config(
+    page_title="AI Study Notes Summarizer",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  CUSTOM CSS — Makes the app look premium and polished
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def inject_custom_css():
+    """Inject custom CSS to style the Streamlit app with a premium look."""
+    st.markdown("""
+    <style>
+    /* ── Import Google Font ── */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    /* ── Global Styles ── */
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+
+    .stApp {
+        background: linear-gradient(135deg, #0f0c29 0%, #1a1a2e 40%, #16213e 100%);
+    }
+
+    /* ── Hero Header ── */
+    .hero-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        border-radius: 20px;
+        padding: 2.5rem 2rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+        animation: shimmer 6s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        50% { transform: translate(10%, 10%) rotate(5deg); }
+    }
+
+    .hero-title {
+        font-size: 2.8rem;
+        font-weight: 800;
+        color: white;
+        margin: 0;
+        text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+        position: relative;
+        letter-spacing: -0.5px;
+    }
+
+    .hero-subtitle {
+        font-size: 1.15rem;
+        color: rgba(255, 255, 255, 0.9);
+        margin-top: 0.75rem;
+        font-weight: 400;
+        position: relative;
+        letter-spacing: 0.2px;
+    }
+
+    /* ── Glass Card ── */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 1.75rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .glass-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .card-summary { color: #a78bfa; }
+    .card-keypoints { color: #34d399; }
+    .card-terms { color: #fbbf24; }
+    .card-quiz { color: #f87171; }
+    .card-flashcards { color: #60a5fa; }
+
+    .card-content {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.95rem;
+        line-height: 1.75;
+    }
+
+    .card-content ul {
+        padding-left: 1.25rem;
+    }
+
+    .card-content li {
+        margin-bottom: 0.5rem;
+    }
+
+    /* ── Term Badge ── */
+    .term-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(251, 191, 36, 0.05));
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        color: #fbbf24;
+        padding: 0.35rem 0.85rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin: 0.25rem;
+    }
+
+    /* ── Quiz & Flashcard Blocks ── */
+    .quiz-block {
+        background: rgba(248, 113, 113, 0.08);
+        border-left: 3px solid #f87171;
+        padding: 1rem 1.25rem;
+        border-radius: 0 12px 12px 0;
+        margin-bottom: 0.75rem;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .flashcard-block {
+        background: rgba(96, 165, 250, 0.08);
+        border: 1px solid rgba(96, 165, 250, 0.2);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 0.75rem;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .flashcard-q {
+        font-weight: 600;
+        color: #93c5fd;
+        margin-bottom: 0.5rem;
+    }
+
+    .flashcard-a {
+        color: rgba(255, 255, 255, 0.75);
+        padding-left: 1rem;
+        border-left: 2px solid rgba(96, 165, 250, 0.3);
+    }
+
+    /* ── Sidebar Styling ── */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    section[data-testid="stSidebar"] .stMarkdown {
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    /* ── Input Area Styling ── */
+    .stTextArea textarea {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        color: white !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.95rem !important;
+        padding: 1rem !important;
+    }
+
+    .stTextArea textarea:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25) !important;
+    }
+
+    /* ── Button Styling ── */
+    .stButton > button {
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        font-family: 'Inter', sans-serif !important;
+        padding: 0.6rem 1.5rem !important;
+        transition: all 0.3s ease !important;
+        border: none !important;
+    }
+
+    /* Primary button */
+    .stButton > button[kind="primary"],
+    div[data-testid="stFormSubmitButton"] > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* Secondary button */
+    .stButton > button[kind="secondary"] {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: rgba(255, 255, 255, 0.85) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    }
+
+    /* ── Stats Badge ── */
+    .stats-bar {
+        display: flex;
+        gap: 1rem;
+        margin: 0.75rem 0 1.25rem 0;
+    }
+
+    .stat-badge {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50px;
+        padding: 0.35rem 1rem;
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.6);
+        font-weight: 500;
+    }
+
+    /* ── Divider ── */
+    .section-divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        margin: 2rem 0;
+    }
+
+    /* ── Footer ── */
+    .app-footer {
+        text-align: center;
+        padding: 2rem 0 1rem 0;
+        color: rgba(255, 255, 255, 0.35);
+        font-size: 0.85rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        margin-top: 3rem;
+    }
+
+    .app-footer a {
+        color: #667eea;
+        text-decoration: none;
+    }
+
+    /* ── Copy box ── */
+    .copy-box {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 1.25rem;
+        font-family: 'Inter', monospace;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.7);
+        white-space: pre-wrap;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    /* ── Hide default Streamlit branding ── */
+    #MainMenu { visibility: hidden; }
+    footer { visibility: hidden; }
+    header { visibility: hidden; }
+
+    /* ── Sidebar feature item ── */
+    .feature-item {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+        border-left: 3px solid #667eea;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  DEMO MODE — Pre-generated results so the app works without an API key
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def get_demo_results(notes: str) -> dict:
+    """
+    Generate realistic demo results based on the user's pasted notes.
+    Extracts real words from the input to make the demo feel authentic.
+    Works without any API key — great for class presentations!
+    """
+    import re
+    import time
+
+    # Simulate a brief processing delay to feel realistic
+    time.sleep(2)
+
+    # ── Extract words from the notes to make demo results relevant ──
+    words = notes.split()
+    # Get unique capitalized words (likely important terms)
+    capitalized = list(set(
+        w.strip(".,;:!?\"'()-") for w in words
+        if len(w) > 3 and w[0].isupper() and not w.isupper()
+    ))
+    # Get longer words as potential key terms
+    long_words = list(set(
+        w.strip(".,;:!?\"'()-").lower() for w in words
+        if len(w.strip(".,;:!?\"'()-")) > 5
+    ))
+
+    # Build a short preview of the notes
+    first_sentence = notes.split(".")[0].strip() if "." in notes else notes[:100]
+    note_preview = notes[:200].strip()
+
+    # ── Select terms from the notes (up to 10) ──
+    demo_terms = (capitalized[:6] + long_words[:6])[:10]
+    if len(demo_terms) < 8:
+        demo_terms += ["key concept", "main idea", "analysis", "methodology",
+                       "framework", "theory", "application", "evaluation"][:8 - len(demo_terms)]
+
+    return {
+        "summary": (
+            f"These notes cover the topic starting with: \"{first_sentence}...\" "
+            f"The material discusses several important concepts and their relationships. "
+            f"Key themes include foundational principles and their practical applications. "
+            f"The notes contain approximately {len(words)} words covering multiple subtopics "
+            f"that build upon each other to form a comprehensive understanding of the subject."
+        ),
+        "key_points": [
+            f"The notes begin by introducing the core concept: \"{first_sentence[:80]}...\"",
+            "Multiple interconnected ideas are presented that form the foundation of this topic",
+            f"Approximately {len(words)} words of content covering key definitions and explanations",
+            "The material emphasizes both theoretical understanding and practical application",
+            "Important relationships between concepts are highlighted throughout the notes",
+            "Several examples and supporting details reinforce the main arguments",
+            "The content builds progressively from basic to more advanced concepts",
+        ],
+        "terms": demo_terms,
+        "quiz": [
+            {
+                "question": f"What is the main topic introduced in these notes?",
+                "answer": f"The notes primarily discuss concepts related to: {first_sentence[:80]}"
+            },
+            {
+                "question": f"How many key concepts are covered in this material?",
+                "answer": f"The material covers approximately {len(demo_terms)} key concepts and terms across {len(words)} words of content."
+            },
+            {
+                "question": "Why is it important to understand the relationship between the concepts discussed?",
+                "answer": "Understanding these relationships helps build a comprehensive framework for applying the knowledge in practical scenarios and exams."
+            },
+            {
+                "question": f"Define the term '{demo_terms[0]}' as used in this context.",
+                "answer": f"'{demo_terms[0]}' refers to a key concept discussed in the notes that forms part of the foundational understanding of this topic."
+            },
+            {
+                "question": "What are the practical applications of the theories discussed in these notes?",
+                "answer": "The theories can be applied to real-world problem solving, critical analysis, and building upon existing knowledge in the field."
+            },
+        ],
+        "flashcards": [
+            {
+                "front": f"What is '{demo_terms[0]}'?",
+                "back": f"A key concept from the notes related to the main topic being studied."
+            },
+            {
+                "front": "What are the main themes of these study notes?",
+                "back": f"The main themes include: {', '.join(demo_terms[:4])} and their interconnected relationships."
+            },
+            {
+                "front": f"What is '{demo_terms[1] if len(demo_terms) > 1 else 'the secondary concept'}'?",
+                "back": "An important term that supports the understanding of the broader topic discussed in the notes."
+            },
+            {
+                "front": "How do the concepts in these notes relate to each other?",
+                "back": "The concepts build progressively — earlier ideas form the foundation for more advanced topics discussed later."
+            },
+            {
+                "front": "What should you focus on when revising this material?",
+                "back": f"Focus on understanding the {len(demo_terms)} key terms, their definitions, and how they connect to form the bigger picture."
+            },
+        ],
+    }
+
+
+def has_api_key() -> bool:
+    """Check if a valid OpenAI API key is configured."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    return bool(api_key and api_key != "your_openai_api_key_here")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  OPENAI HELPER — Sends notes to the AI and parses results
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def get_ai_summary(notes: str) -> dict:
+    """
+    Send the user's study notes to OpenAI and get back structured results.
+    Returns a dictionary with: summary, key_points, terms, quiz, flashcards.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    # Initialize the OpenAI client
+    client = OpenAI(api_key=api_key)
+
+    # ── The prompt — tells the AI exactly what we want back ──
+    system_prompt = """You are an expert academic study assistant. 
+    When given study notes, you MUST return a valid JSON object with these exact keys:
+    
+    {
+      "summary": "A concise, easy-to-understand summary (3-5 sentences)",
+      "key_points": ["point 1", "point 2", ...],  // 5-7 bullet points
+      "terms": ["term 1", "term 2", ...],  // 8-12 important terms/keywords
+      "quiz": [
+        {"question": "...", "answer": "..."},
+        ...
+      ],  // 5 quiz questions with answers
+      "flashcards": [
+        {"front": "...", "back": "..."},
+        ...
+      ]  // 5 flashcards in Q/A format
+    }
+    
+    Rules:
+    - Keep the summary simple and student-friendly
+    - Key points should capture the most important ideas
+    - Terms should be specific vocabulary or concepts from the notes
+    - Quiz questions should test understanding, not just memorization
+    - Flashcards should help with quick revision
+    - Return ONLY valid JSON, no extra text or markdown
+    """
+
+    user_prompt = f"Here are my study notes. Please analyze them:\n\n{notes}"
+
+    # ── Call the OpenAI API ──
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.4,       # Lower = more focused/consistent responses
+        max_tokens=2500,       # Enough room for all sections
+        response_format={"type": "json_object"},  # Force JSON output
+    )
+
+    # Parse the JSON response
+    result = json.loads(response.choices[0].message.content)
+    return result
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  RENDER FUNCTIONS — Display each result section as a styled card
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def render_summary_card(summary: str):
+    """Render the summary section with a purple-themed card."""
+    st.markdown(f"""
+    <div class="glass-card">
+        <div class="card-title card-summary">📝 Summary</div>
+        <div class="card-content">{summary}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_keypoints_card(points: list):
+    """Render the key points section with a green-themed card."""
+    bullets = "".join(f"<li>{point}</li>" for point in points)
+    st.markdown(f"""
+    <div class="glass-card">
+        <div class="card-title card-keypoints">🎯 Key Points</div>
+        <div class="card-content"><ul>{bullets}</ul></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_terms_card(terms: list):
+    """Render the important terms section with pill-shaped badges."""
+    badges = "".join(f'<span class="term-badge">{term}</span>' for term in terms)
+    st.markdown(f"""
+    <div class="glass-card">
+        <div class="card-title card-terms">🔑 Important Terms</div>
+        <div class="card-content">{badges}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_quiz_card(quiz: list):
+    """Render quiz questions — each item rendered separately to avoid HTML truncation."""
+    st.markdown("""
+    <div class="glass-card" style="padding-bottom: 0.5rem;">
+        <div class="card-title card-quiz">❓ Quiz Questions</div>
+    """, unsafe_allow_html=True)
+    for i, q in enumerate(quiz, 1):
+        question = q.get("question", "")
+        answer = q.get("answer", "")
+        st.markdown(f"""
+        <div class="quiz-block">
+            <strong>Q{i}:</strong> {question}<br>
+            <details style="margin-top: 0.5rem; cursor: pointer;">
+                <summary style="color: #fca5a5; font-weight: 500;">💡 Show Answer</summary>
+                <p style="margin-top: 0.5rem; padding-left: 0.5rem;">{answer}</p>
+            </details>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_flashcards(flashcards: list):
+    """Render flashcards — each card rendered separately to avoid HTML truncation."""
+    st.markdown("""
+    <div class="glass-card" style="padding-bottom: 0.5rem;">
+        <div class="card-title card-flashcards">🃏 Flashcards</div>
+    """, unsafe_allow_html=True)
+    for i, fc in enumerate(flashcards, 1):
+        front = fc.get("front", "")
+        back = fc.get("back", "")
+        st.markdown(f"""
+        <div class="flashcard-block">
+            <div class="flashcard-q">📄 Card {i}: {front}</div>
+            <details style="cursor: pointer;">
+                <summary style="color: #93c5fd; font-weight: 500;">Flip Card →</summary>
+                <div class="flashcard-a" style="margin-top: 0.5rem;">{back}</div>
+            </details>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def build_copy_text(results: dict) -> str:
+    """Build a plain-text version of all results for easy copying."""
+    text = "📚 AI STUDY NOTES SUMMARY\n"
+    text += "=" * 40 + "\n\n"
+
+    text += "📝 SUMMARY\n"
+    text += results.get("summary", "") + "\n\n"
+
+    text += "🎯 KEY POINTS\n"
+    for pt in results.get("key_points", []):
+        text += f"  • {pt}\n"
+    text += "\n"
+
+    text += "🔑 IMPORTANT TERMS\n"
+    text += ", ".join(results.get("terms", [])) + "\n\n"
+
+    text += "❓ QUIZ QUESTIONS\n"
+    for i, q in enumerate(results.get("quiz", []), 1):
+        text += f"  Q{i}: {q.get('question', '')}\n"
+        text += f"  A{i}: {q.get('answer', '')}\n\n"
+
+    text += "🃏 FLASHCARDS\n"
+    for i, fc in enumerate(results.get("flashcards", []), 1):
+        text += f"  Card {i} — Q: {fc.get('front', '')}\n"
+        text += f"           A: {fc.get('back', '')}\n\n"
+
+    return text
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  SIDEBAR
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def render_sidebar():
+    """Render the sidebar with app info, features, and instructions."""
+    with st.sidebar:
+        st.markdown("## 🧠 Study Summarizer")
+        st.markdown(
+            "<p style='color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-top: -10px;'>"
+            "Powered by AI</p>",
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("---")
+
+        # ── Mode indicator ──
+        api_available = has_api_key()
+        if api_available:
+            st.markdown(
+                '<div style="background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.3); '
+                'border-radius: 10px; padding: 0.6rem 1rem; text-align: center; margin-bottom: 1rem;">'
+                '🟢 <strong style="color: #34d399;">AI Mode Active</strong><br>'
+                '<span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Using OpenAI GPT-4o-mini</span></div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div style="background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.3); '
+                'border-radius: 10px; padding: 0.6rem 1rem; text-align: center; margin-bottom: 1rem;">'
+                '🟡 <strong style="color: #fbbf24;">Demo Mode</strong><br>'
+                '<span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">'
+                'No API key needed · Works instantly</span></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("---")
+
+        st.markdown("### ✨ Features")
+        features = [
+            "📝 Concise summaries",
+            "🎯 Key points extraction",
+            "🔑 Important terms & keywords",
+            "❓ Quiz questions for revision",
+            "🃏 Flashcards for quick study",
+        ]
+        for f in features:
+            st.markdown(
+                f'<div class="feature-item">{f}</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("---")
+
+        st.markdown("### 📖 How to Use")
+        st.markdown("""
+        1. **Paste** your study notes into the text area
+        2. Click **"✨ Summarize Notes"**
+        3. Review the AI-generated results
+        4. Use **quiz questions** and **flashcards** to study!
+        """)
+
+        st.markdown("---")
+
+        st.markdown("### 💡 Tips")
+        st.markdown("""
+        - Paste at least **100 words** for best results
+        - Works with any subject — science, history, CS, etc.
+        - Use the **Copy Results** section to save your output
+        """)
+
+        if not api_available:
+            st.markdown("---")
+            st.markdown("### 🔑 Enable AI Mode")
+            st.markdown("""
+            To use real AI summarization:
+            1. Get a key from [OpenAI](https://platform.openai.com/api-keys)
+            2. Create a `.env` file in the project folder
+            3. Add: `OPENAI_API_KEY=sk-...`
+            4. Restart the app
+            """)
+
+        st.markdown("---")
+        st.markdown(
+            "<p style='text-align: center; color: rgba(255,255,255,0.3); font-size: 0.75rem;'>"
+            "v1.0 · Made with ❤️ for students</p>",
+            unsafe_allow_html=True,
+        )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  MAIN APP
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def main():
+    """Main function that runs the Streamlit app."""
+
+    # ── Inject CSS & render sidebar ──
+    inject_custom_css()
+    render_sidebar()
+
+    # ── Hero Header ──
+    st.markdown("""
+    <div class="hero-header">
+        <h1 class="hero-title">🧠 AI Study Notes Summarizer</h1>
+        <p class="hero-subtitle">
+            Turn long notes into summaries, key points, and practice questions instantly
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Initialize session state for storing results ──
+    if "results" not in st.session_state:
+        st.session_state.results = None
+    if "notes_input" not in st.session_state:
+        st.session_state.notes_input = ""
+
+    # ── Notes Input Section ──
+    st.markdown(
+        '<p style="color: rgba(255,255,255,0.7); font-size: 1.1rem; font-weight: 600; '
+        'margin-bottom: 0.5rem;">📋 Paste your study notes below</p>',
+        unsafe_allow_html=True,
+    )
+
+    notes = st.text_area(
+        label="Study Notes",
+        height=250,
+        placeholder="Paste your lecture notes, textbook excerpts, or study material here...",
+        key="notes_area",
+        label_visibility="collapsed",
+    )
+
+    # ── Word & Character Count ──
+    if notes:
+        word_count = len(notes.split())
+        char_count = len(notes)
+        st.markdown(f"""
+        <div class="stats-bar">
+            <span class="stat-badge">📊 {word_count} words</span>
+            <span class="stat-badge">🔤 {char_count} characters</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Action Buttons ──
+    col1, col2, col3 = st.columns([1.5, 1, 4])
+
+    with col1:
+        summarize_clicked = st.button("✨ Summarize Notes", type="primary", use_container_width=True)
+
+    with col2:
+        clear_clicked = st.button("🗑️ Clear", type="secondary", use_container_width=True)
+
+    # ── Handle Clear ──
+    if clear_clicked:
+        st.session_state.results = None
+        st.rerun()
+
+    # ── Divider ──
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+
+    # ── Handle Summarize ──
+    if summarize_clicked:
+        # Validate input
+        if not notes or len(notes.strip()) < 30:
+            st.warning("⚠️ Please paste at least a few sentences of study notes to summarize.")
+        else:
+            # Decide: Demo mode or AI mode
+            use_ai = has_api_key()
+            spinner_msg = (
+                "🧠 AI is analyzing your notes... This may take a moment."
+                if use_ai
+                else "🧠 Processing your notes in demo mode..."
+            )
+
+            with st.spinner(spinner_msg):
+                try:
+                    if use_ai:
+                        results = get_ai_summary(notes)
+                    else:
+                        results = get_demo_results(notes)
+
+                    st.session_state.results = results
+
+                    if use_ai:
+                        st.success("✅ Your notes have been summarized using AI!")
+                    else:
+                        st.success("✅ Demo results generated! Add an OpenAI API key for real AI summaries.")
+
+                except json.JSONDecodeError:
+                    st.error("❌ The AI returned an unexpected format. Please try again.")
+                except Exception as e:
+                    st.error(f"❌ Something went wrong: {str(e)}")
+
+    # ── Display Results ──
+    if st.session_state.results:
+        results = st.session_state.results
+
+        # ── Summary & Key Points — side by side ──
+        left, right = st.columns(2)
+
+        with left:
+            render_summary_card(results.get("summary", "No summary available."))
+
+        with right:
+            render_keypoints_card(results.get("key_points", []))
+
+        # ── Important Terms ──
+        render_terms_card(results.get("terms", []))
+
+        # ── Quiz & Flashcards — side by side ──
+        left2, right2 = st.columns(2)
+
+        with left2:
+            render_quiz_card(results.get("quiz", []))
+
+        with right2:
+            render_flashcards(results.get("flashcards", []))
+
+        # ── Divider ──
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+
+        # ── Copy Results Section ──
+        with st.expander("📋 Copy All Results (Plain Text)", expanded=False):
+            copy_text = build_copy_text(results)
+            st.code(copy_text, language=None)
+
+    # ── Footer ──
+    st.markdown("""
+    <div class="app-footer">
+        🧠 AI Study Notes Summarizer · Built for students using AI<br>
+        <span style="font-size: 0.75rem;">Powered by OpenAI · Made with Streamlit</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ── Run the app ──
+if __name__ == "__main__":
+    main()
