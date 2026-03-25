@@ -433,6 +433,211 @@ def inject_custom_css():
         background: rgba(102, 126, 234, 0.2) !important;
         color: white !important;
     }
+    /* ── Chat Interface ── */
+    .chat-container {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .chat-msg {
+        display: flex;
+        margin-bottom: 1rem;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .chat-msg-user {
+        justify-content: flex-end;
+    }
+
+    .chat-bubble {
+        max-width: 80%;
+        padding: 0.85rem 1.15rem;
+        border-radius: 16px;
+        font-size: 0.92rem;
+        line-height: 1.6;
+        color: rgba(255,255,255,0.9);
+    }
+
+    .bubble-user {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-bottom-right-radius: 4px;
+    }
+
+    .bubble-ai {
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-bottom-left-radius: 4px;
+    }
+
+    /* ── Achievements & Streak ── */
+    .streak-badge {
+        background: linear-gradient(135deg, #f97316, #ef4444);
+        border-radius: 14px;
+        padding: 1rem;
+        text-align: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .streak-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: white;
+    }
+
+    .streak-label {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.8);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .xp-bar-container {
+        background: rgba(255,255,255,0.08);
+        border-radius: 50px;
+        height: 10px;
+        margin: 0.5rem 0;
+        overflow: hidden;
+    }
+
+    .xp-bar-fill {
+        height: 100%;
+        border-radius: 50px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        transition: width 0.5s ease;
+    }
+
+    .achievement-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 50px;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.7);
+        margin: 0.2rem;
+    }
+
+    .achievement-badge.unlocked {
+        border-color: rgba(251, 191, 36, 0.4);
+        background: rgba(251, 191, 36, 0.1);
+        color: #fbbf24;
+    }
+
+    /* ── Difficulty Gauge ── */
+    .difficulty-card {
+        background: rgba(255,255,255,0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .gauge-container {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin: 1rem 0;
+    }
+
+    .gauge-visual {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+
+    .gauge-beginner {
+        background: conic-gradient(#34d399 var(--pct), rgba(255,255,255,0.1) 0);
+        color: #34d399;
+    }
+
+    .gauge-intermediate {
+        background: conic-gradient(#fbbf24 var(--pct), rgba(255,255,255,0.1) 0);
+        color: #fbbf24;
+    }
+
+    .gauge-advanced {
+        background: conic-gradient(#f87171 var(--pct), rgba(255,255,255,0.1) 0);
+        color: #f87171;
+    }
+
+    .gauge-inner {
+        width: 72px;
+        height: 72px;
+        background: #1a1a2e;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .gauge-details {
+        flex: 1;
+    }
+
+    .gauge-detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        font-size: 0.88rem;
+    }
+
+    .gauge-detail-label {
+        color: rgba(255,255,255,0.5);
+    }
+
+    .gauge-detail-value {
+        color: rgba(255,255,255,0.9);
+        font-weight: 600;
+    }
+
+    /* ── Mind Map ── */
+    .mindmap-container {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        padding: 1.5rem;
+        min-height: 300px;
+    }
+
+    .mindmap-node {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        margin: 0.3rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .node-center {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        font-size: 1rem;
+        font-weight: 700;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .node-branch-1 { background: rgba(167, 139, 250, 0.2); color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); }
+    .node-branch-2 { background: rgba(52, 211, 153, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+    .node-branch-3 { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+    .node-branch-4 { background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
+    .node-branch-5 { background: rgba(248, 113, 113, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -911,6 +1116,382 @@ Here are my study notes:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  AI CHAT ASSISTANT — Follow-up conversation about notes
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def get_ai_chat_response(notes: str, chat_history: list, user_message: str) -> str:
+    """Send a follow-up question to Gemini with the notes as context."""
+    api_key = os.getenv("GOOGLE_API_KEY")
+    genai.configure(api_key=api_key)
+
+    model = genai.GenerativeModel("gemini-2.0-flash")
+
+    history_text = ""
+    for msg in chat_history[-6:]:  # Last 6 messages for context
+        role = "Student" if msg["role"] == "user" else "AI Tutor"
+        history_text += f"{role}: {msg['content']}\n"
+
+    prompt = f"""You are a friendly, expert AI study tutor. A student has shared their study notes with you and is asking follow-up questions.
+
+STUDY NOTES:
+{notes[:3000]}
+
+CONVERSATION SO FAR:
+{history_text}
+
+Student's new question: {user_message}
+
+Rules:
+- Be helpful, clear, and encouraging
+- If they ask for more quiz questions, generate them
+- If they ask for explanations, make them simple and student-friendly
+- Keep responses concise (2-4 paragraphs max)
+- Use bullet points when listing things
+- Be conversational and supportive"""
+
+    response = model.generate_content(
+        prompt,
+        generation_config=genai.types.GenerationConfig(temperature=0.7),
+    )
+    return response.text
+
+
+def render_chat_tab(notes: str):
+    """Render the AI Chat Assistant tab."""
+    st.markdown("""
+    <div class="glass-card">
+        <div class="card-title" style="color: #a78bfa;">💬 AI Study Chat</div>
+        <div class="card-content">
+            Ask follow-up questions about your notes! Get deeper explanations, more quiz questions, or clarify confusing topics.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Initialize chat history
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    # Display chat history
+    if st.session_state.chat_history:
+        chat_html = '<div class="chat-container">'
+        for msg in st.session_state.chat_history:
+            if msg["role"] == "user":
+                chat_html += f'''
+                <div class="chat-msg chat-msg-user">
+                    <div class="chat-bubble bubble-user">{msg["content"]}</div>
+                </div>'''
+            else:
+                chat_html += f'''
+                <div class="chat-msg">
+                    <div class="chat-bubble bubble-ai">{msg["content"]}</div>
+                </div>'''
+        chat_html += '</div>'
+        st.markdown(chat_html, unsafe_allow_html=True)
+
+    # Chat input
+    with st.form("chat_form", clear_on_submit=True):
+        user_msg = st.text_input(
+            "Ask a question about your notes...",
+            placeholder="e.g. Can you explain this concept more simply?",
+            label_visibility="collapsed",
+        )
+        col1, col2 = st.columns([1, 5])
+        with col1:
+            send = st.form_submit_button("Send 🚀", type="primary", use_container_width=True)
+        with col2:
+            clear = st.form_submit_button("Clear Chat 🗑️", use_container_width=True)
+
+    if send and user_msg:
+        st.session_state.chat_history.append({"role": "user", "content": user_msg})
+        if has_api_key():
+            with st.spinner("🤖 Thinking..."):
+                response = get_ai_chat_response(notes, st.session_state.chat_history, user_msg)
+                st.session_state.chat_history.append({"role": "ai", "content": response})
+                # Award XP for chatting
+                if "xp" not in st.session_state:
+                    st.session_state.xp = 0
+                st.session_state.xp += 10
+        else:
+            st.session_state.chat_history.append({
+                "role": "ai",
+                "content": "I'm in demo mode! Add a free Google API key to chat with AI about your notes. 🔑"
+            })
+        st.rerun()
+
+    if clear:
+        st.session_state.chat_history = []
+        st.rerun()
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  DIFFICULTY ANALYSIS — Visual complexity gauge
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def analyze_difficulty(notes: str) -> dict:
+    """Analyze the difficulty of notes based on text metrics."""
+    words = notes.split()
+    word_count = len(words)
+    avg_word_len = sum(len(w) for w in words) / max(word_count, 1)
+    sentences = [s.strip() for s in notes.replace("!", ".").replace("?", ".").split(".") if s.strip()]
+    avg_sentence_len = word_count / max(len(sentences), 1)
+
+    # Simple readability heuristic
+    complexity_score = min(100, int((avg_word_len * 8) + (avg_sentence_len * 1.5)))
+
+    if complexity_score < 40:
+        level = "Beginner"
+        grade = "6th-8th Grade"
+        emoji = "🟢"
+    elif complexity_score < 65:
+        level = "Intermediate"
+        grade = "9th-12th Grade"
+        emoji = "🟡"
+    else:
+        level = "Advanced"
+        grade = "College Level"
+        emoji = "🔴"
+
+    # Estimate study time (rough: ~200 words/min reading + 2x for studying)
+    study_mins = max(5, int((word_count / 200) * 3))
+
+    return {
+        "score": complexity_score,
+        "level": level,
+        "grade": grade,
+        "emoji": emoji,
+        "study_time": f"{study_mins} min",
+        "word_count": word_count,
+        "sentences": len(sentences),
+        "avg_word_len": round(avg_word_len, 1),
+    }
+
+
+def render_difficulty_card(notes: str):
+    """Render the difficulty analysis gauge card."""
+    d = analyze_difficulty(notes)
+
+    gauge_class = f"gauge-{d['level'].lower()}"
+    pct = f"{d['score']}%"
+
+    st.markdown(f"""
+    <div class="difficulty-card">
+        <div class="card-title" style="color: #f093fb;">📊 Difficulty Analysis</div>
+        <div class="gauge-container">
+            <div class="gauge-visual {gauge_class}" style="--pct: {pct}">
+                <div class="gauge-inner">
+                    <span>{d['score']}</span>
+                </div>
+            </div>
+            <div class="gauge-details">
+                <div class="gauge-detail-row">
+                    <span class="gauge-detail-label">Difficulty</span>
+                    <span class="gauge-detail-value">{d['emoji']} {d['level']}</span>
+                </div>
+                <div class="gauge-detail-row">
+                    <span class="gauge-detail-label">Reading Level</span>
+                    <span class="gauge-detail-value">{d['grade']}</span>
+                </div>
+                <div class="gauge-detail-row">
+                    <span class="gauge-detail-label">Est. Study Time</span>
+                    <span class="gauge-detail-value">⏱️ {d['study_time']}</span>
+                </div>
+                <div class="gauge-detail-row">
+                    <span class="gauge-detail-label">Sentences</span>
+                    <span class="gauge-detail-value">{d['sentences']}</span>
+                </div>
+                <div class="gauge-detail-row" style="border: none;">
+                    <span class="gauge-detail-label">Avg Word Length</span>
+                    <span class="gauge-detail-value">{d['avg_word_len']} chars</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  MIND MAP — Visual concept connections
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def render_mind_map_tab(results: dict, notes: str):
+    """Render a visual mind map from the AI results."""
+    st.markdown("""
+    <div class="glass-card">
+        <div class="card-title" style="color: #34d399;">🗺️ Concept Mind Map</div>
+        <div class="card-content">
+            Visual overview of how key concepts from your notes connect together.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    key_points = results.get("key_points", [])
+    terms = results.get("terms", [])
+    summary = results.get("summary", "Study Notes")
+
+    # Extract central topic from summary
+    central_topic = summary.split(".")[0][:50] if summary else "Main Topic"
+
+    # Build mind map HTML
+    branch_colors = ["node-branch-1", "node-branch-2", "node-branch-3", "node-branch-4", "node-branch-5"]
+
+    map_html = '<div class="mindmap-container" style="text-align: center;">'
+    map_html += f'<div style="margin-bottom: 1.5rem;"><span class="mindmap-node node-center">🧠 {central_topic}</span></div>'
+
+    # Key Points as branches
+    if key_points:
+        map_html += '<div style="margin-bottom: 0.75rem; font-size: 0.75rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px;">Key Concepts</div>'
+        map_html += '<div style="margin-bottom: 1.5rem;">'
+        for i, point in enumerate(key_points[:7]):
+            color = branch_colors[i % len(branch_colors)]
+            short_point = point[:60] + "..." if len(point) > 60 else point
+            map_html += f'<span class="mindmap-node {color}">{short_point}</span> '
+        map_html += '</div>'
+
+    # Terms as leaf nodes
+    if terms:
+        map_html += '<div style="margin-bottom: 0.75rem; font-size: 0.75rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px;">Important Terms</div>'
+        map_html += '<div>'
+        for i, term in enumerate(terms[:12]):
+            color = branch_colors[i % len(branch_colors)]
+            map_html += f'<span class="mindmap-node {color}" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">🔑 {term}</span> '
+        map_html += '</div>'
+
+    map_html += '</div>'
+    st.markdown(map_html, unsafe_allow_html=True)
+
+    # Connection insights
+    if has_api_key() and key_points:
+        with st.expander("🔗 AI Connection Insights", expanded=False):
+            if st.button("Generate Concept Connections ✨", key="gen_connections"):
+                with st.spinner("🧠 Finding connections..."):
+                    api_key = os.getenv("GOOGLE_API_KEY")
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel("gemini-2.0-flash")
+                    prompt = f"""Given these key points from study notes, explain how they connect to each other in 3-4 bullet points. Be concise.
+
+Key points:
+{chr(10).join(f'- {p}' for p in key_points[:5])}
+
+Terms: {', '.join(terms[:8])}
+
+Format: Simple bullet points explaining connections."""
+                    resp = model.generate_content(prompt)
+                    st.markdown(resp.text)
+                    if "xp" not in st.session_state:
+                        st.session_state.xp = 0
+                    st.session_state.xp += 20
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  ACHIEVEMENTS & STREAK SYSTEM
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def init_achievements():
+    """Initialize achievement tracking in session state."""
+    if "xp" not in st.session_state:
+        st.session_state.xp = 0
+    if "streak" not in st.session_state:
+        st.session_state.streak = 0
+    if "achievements" not in st.session_state:
+        st.session_state.achievements = set()
+
+
+def check_achievements():
+    """Check and unlock achievements based on current stats."""
+    achievements = st.session_state.achievements
+    nc = st.session_state.get("notes_count", 0)
+    wp = st.session_state.get("words_processed", 0)
+    qc = st.session_state.get("quizzes_taken", 0)
+    bs = st.session_state.get("best_score", 0)
+
+    if nc >= 1:
+        achievements.add("first_summary")
+    if nc >= 5:
+        achievements.add("power_summarizer")
+    if nc >= 10:
+        achievements.add("note_master")
+    if wp >= 1000:
+        achievements.add("bookworm")
+    if wp >= 5000:
+        achievements.add("scholar")
+    if qc >= 1:
+        achievements.add("quiz_taker")
+    if qc >= 5:
+        achievements.add("quiz_pro")
+    if bs >= 100:
+        achievements.add("perfect_score")
+    if len(st.session_state.get("chat_history", [])) >= 4:
+        achievements.add("curious_mind")
+    if st.session_state.xp >= 200:
+        achievements.add("xp_hunter")
+
+
+def render_achievements():
+    """Render the achievements and streak widget in sidebar."""
+    init_achievements()
+    check_achievements()
+
+    xp = st.session_state.xp
+    level = xp // 100 + 1
+    xp_in_level = xp % 100
+    streak = st.session_state.get("notes_count", 0)
+
+    st.markdown("### 🏆 Study Streak")
+
+    # Streak badge
+    st.markdown(f"""
+    <div class="streak-badge">
+        <div class="streak-number">🔥 {streak}</div>
+        <div class="streak-label">Notes Analyzed</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # XP & Level
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 0.75rem; margin-bottom: 0.5rem;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: rgba(255,255,255,0.7);">
+            <span>⭐ Level {level}</span>
+            <span>{xp_in_level}/100 XP</span>
+        </div>
+        <div class="xp-bar-container">
+            <div class="xp-bar-fill" style="width: {xp_in_level}%;"></div>
+        </div>
+        <div style="text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">
+            Total: {xp} XP
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Achievement badges
+    all_badges = {
+        "first_summary": ("🎯", "First Summary"),
+        "power_summarizer": ("⚡", "5 Summaries"),
+        "note_master": ("👑", "Note Master"),
+        "bookworm": ("📚", "1K Words"),
+        "scholar": ("🎓", "5K Words"),
+        "quiz_taker": ("🎮", "Quiz Taker"),
+        "quiz_pro": ("🏅", "Quiz Pro"),
+        "perfect_score": ("💯", "Perfect Score"),
+        "curious_mind": ("🧐", "Curious Mind"),
+        "xp_hunter": ("💎", "XP Hunter"),
+    }
+
+    st.markdown(f"""
+    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 0.4rem;">
+        🏅 Badges ({len(st.session_state.achievements)}/{len(all_badges)})
+    </div>
+    """, unsafe_allow_html=True)
+
+    badges_html = ""
+    for key, (emoji, name) in all_badges.items():
+        unlocked = key in st.session_state.achievements
+        cls = "achievement-badge unlocked" if unlocked else "achievement-badge"
+        badges_html += f'<span class="{cls}">{emoji} {name}</span>'
+
+    st.markdown(f'<div>{badges_html}</div>', unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  RENDER FUNCTIONS — Display each result section as a styled card
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1065,6 +1646,10 @@ def render_sidebar():
             "📄 PDF/DOCX/TXT upload",
             "🎮 Interactive quiz mode",
             "📥 PDF export",
+            "💬 AI Chat Assistant",
+            "🗺️ Mind Map Visualization",
+            "📊 Difficulty Analysis",
+            "🏆 Study Achievements",
         ]
         for f in features:
             st.markdown(
@@ -1109,9 +1694,14 @@ def render_sidebar():
         render_pomodoro_timer()
 
         st.markdown("---")
+
+        # ── Achievements & Streak ──
+        render_achievements()
+
+        st.markdown("---")
         st.markdown(
             "<p style='text-align: center; color: rgba(255,255,255,0.3); font-size: 0.75rem;'>"
-            "v2.0 · Made with ❤️ for students</p>",
+            "v3.0 · Made with ❤️ for students</p>",
             unsafe_allow_html=True,
         )
 
@@ -1236,6 +1826,11 @@ def main():
                     st.session_state.notes_count += 1
                     st.session_state.words_processed += len(notes.split())
 
+                    # Award XP
+                    if "xp" not in st.session_state:
+                        st.session_state.xp = 0
+                    st.session_state.xp += 50  # +50 XP for summarizing
+
                     if use_ai:
                         st.success("✅ Your notes have been summarized using AI!")
                     else:
@@ -1250,10 +1845,15 @@ def main():
     if st.session_state.results:
         results = st.session_state.results
 
-        # ── Tabbed Results View ──
-        tab1, tab2, tab3 = st.tabs(["📝 Results", "🎮 Interactive Quiz", "📥 Export"])
+        # ── Tabbed Results View (5 tabs!) ──
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "📝 Results", "🎮 Interactive Quiz", "💬 AI Chat", "🗺️ Mind Map", "📥 Export"
+        ])
 
         with tab1:
+            # ── Difficulty Analysis ──
+            render_difficulty_card(notes)
+
             # ── Summary & Key Points — side by side ──
             left, right = st.columns(2)
             with left:
@@ -1276,6 +1876,14 @@ def main():
             render_interactive_quiz(results.get("quiz", []))
 
         with tab3:
+            # ── AI Chat Assistant ──
+            render_chat_tab(notes)
+
+        with tab4:
+            # ── Mind Map Visualization ──
+            render_mind_map_tab(results, notes)
+
+        with tab5:
             # ── PDF Export ──
             st.markdown("""
             <div class="glass-card">
