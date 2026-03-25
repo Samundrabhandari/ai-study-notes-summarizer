@@ -869,7 +869,7 @@ def get_ai_summary(notes: str) -> dict:
     api_key = os.getenv("GOOGLE_API_KEY")
     genai.configure(api_key=api_key)
 
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.0-flash")
 
     prompt = """You are an expert academic study assistant.
 When given study notes, you MUST return a valid JSON object with these exact keys:
