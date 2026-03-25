@@ -23,6 +23,13 @@ from fpdf import FPDF
 # ─── Load environment variables from .env file ───
 load_dotenv()
 
+# ─── Streamlit Cloud: load secrets into env vars ───
+try:
+    if "GOOGLE_API_KEY" in st.secrets:
+        os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+except Exception:
+    pass  # Not on Streamlit Cloud, use .env instead
+
 # ─── Page Configuration ───
 st.set_page_config(
     page_title="AI Study Notes Summarizer",
