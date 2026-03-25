@@ -1,18 +1,24 @@
 """
 AI Study Notes Summarizer
 =========================
-A Streamlit web app that uses OpenAI to turn study notes into
+A Streamlit web app that uses Google Gemini AI to turn study notes into
 summaries, key points, important terms, quiz questions, and flashcards.
 
 Author: Student Project
-Tech: Python · Streamlit · OpenAI API · python-dotenv
+Tech: Python · Streamlit · Google Gemini API · python-dotenv
 """
 
 import os
+import io
 import json
+import time
+from datetime import datetime
 import streamlit as st
-from openai import OpenAI
+import google.generativeai as genai
 from dotenv import load_dotenv
+from PyPDF2 import PdfReader
+from docx import Document as DocxDocument
+from fpdf import FPDF
 
 # ─── Load environment variables from .env file ───
 load_dotenv()
@@ -308,6 +314,118 @@ def inject_custom_css():
         color: rgba(255, 255, 255, 0.8);
         border-left: 3px solid #667eea;
     }
+
+    /* ── File Upload Zone ── */
+    .upload-zone {
+        background: rgba(102, 126, 234, 0.08);
+        border: 2px dashed rgba(102, 126, 234, 0.3);
+        border-radius: 16px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .upload-zone:hover {
+        border-color: rgba(102, 126, 234, 0.6);
+        background: rgba(102, 126, 234, 0.12);
+    }
+
+    /* ── Interactive Quiz ── */
+    .quiz-interactive {
+        background: rgba(248, 113, 113, 0.06);
+        border: 1px solid rgba(248, 113, 113, 0.2);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .quiz-score-card {
+        background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(52, 211, 153, 0.05));
+        border: 1px solid rgba(52, 211, 153, 0.3);
+        border-radius: 16px;
+        padding: 1.5rem;
+        text-align: center;
+        margin: 1rem 0;
+    }
+
+    .score-big {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #34d399, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    /* ── Pomodoro Timer ── */
+    .pomodoro-display {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 1.25rem;
+        text-align: center;
+        margin: 0.75rem 0;
+    }
+
+    .timer-text {
+        font-size: 2.5rem;
+        font-weight: 800;
+        font-family: 'Inter', monospace;
+        letter-spacing: 2px;
+    }
+
+    .timer-study { color: #34d399; }
+    .timer-break { color: #fbbf24; }
+    .timer-idle { color: rgba(255, 255, 255, 0.4); }
+
+    .session-count {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin-top: 0.5rem;
+    }
+
+    /* ── Progress Dashboard ── */
+    .metric-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 1.25rem;
+        text-align: center;
+        transition: transform 0.2s ease;
+    }
+
+    .metric-card:hover { transform: translateY(-2px); }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .metric-label {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin-top: 0.25rem;
+        font-weight: 500;
+    }
+
+    /* ── Tab Navigation ── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px !important;
+        padding: 0.5rem 1rem !important;
+        color: rgba(255, 255, 255, 0.7) !important;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: rgba(102, 126, 234, 0.2) !important;
+        color: white !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -417,68 +535,371 @@ def get_demo_results(notes: str) -> dict:
 
 
 def has_api_key() -> bool:
-    """Check if a valid OpenAI API key is configured."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    return bool(api_key and api_key != "your_openai_api_key_here")
+    """Check if a valid Google Gemini API key is configured."""
+    api_key = os.getenv("GOOGLE_API_KEY")
+    return bool(api_key and api_key != "your_google_api_key_here")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  OPENAI HELPER — Sends notes to the AI and parses results
+#  FILE UPLOAD — Extract text from PDF, DOCX, or TXT files
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def extract_text_from_file(uploaded_file) -> str:
+    """Extract text content from an uploaded PDF, DOCX, or TXT file."""
+    file_type = uploaded_file.name.split(".")[-1].lower()
+    try:
+        if file_type == "pdf":
+            reader = PdfReader(uploaded_file)
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        elif file_type == "docx":
+            doc = DocxDocument(uploaded_file)
+            text = "\n".join(para.text for para in doc.paragraphs if para.text.strip())
+        elif file_type == "txt":
+            text = uploaded_file.read().decode("utf-8")
+        else:
+            text = ""
+        return text.strip()
+    except Exception as e:
+        st.error(f"❌ Could not read file: {str(e)}")
+        return ""
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  INTERACTIVE QUIZ — Take the quiz with scoring
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def render_interactive_quiz(quiz: list):
+    """Render an interactive quiz with radio-button answers and scoring."""
+    if "quiz_submitted" not in st.session_state:
+        st.session_state.quiz_submitted = False
+    if "quiz_answers" not in st.session_state:
+        st.session_state.quiz_answers = {}
+
+    st.markdown("""
+    <div class="glass-card">
+        <div class="card-title card-quiz">🎮 Interactive Quiz Mode</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if not st.session_state.quiz_submitted:
+        with st.form("quiz_form"):
+            for i, q in enumerate(quiz):
+                question = q.get("question", "")
+                answer = q.get("answer", "")
+                st.markdown(f"""
+                <div class="quiz-block">
+                    <strong>Q{i + 1}:</strong> {question}
+                </div>
+                """, unsafe_allow_html=True)
+                user_answer = st.text_input(
+                    f"Your answer for Q{i + 1}",
+                    key=f"quiz_q_{i}",
+                    placeholder="Type your answer here...",
+                    label_visibility="collapsed",
+                )
+            col_submit, col_skip = st.columns([1, 3])
+            with col_submit:
+                submitted = st.form_submit_button("✅ Submit Quiz", type="primary", use_container_width=True)
+            with col_skip:
+                skipped = st.form_submit_button("👀 Show All Answers", use_container_width=True)
+
+            if submitted or skipped:
+                st.session_state.quiz_submitted = True
+                st.session_state.quiz_skipped = skipped
+                for i in range(len(quiz)):
+                    st.session_state.quiz_answers[i] = st.session_state.get(f"quiz_q_{i}", "")
+                # Track in progress stats
+                if "total_quizzes" not in st.session_state:
+                    st.session_state.total_quizzes = 0
+                st.session_state.total_quizzes += 1
+                st.rerun()
+    else:
+        # Show results
+        score = 0
+        total = len(quiz)
+        for i, q in enumerate(quiz):
+            question = q.get("question", "")
+            correct = q.get("answer", "")
+            user_ans = st.session_state.quiz_answers.get(i, "")
+            # Simple matching — check if key words from answer appear in user's answer
+            if not st.session_state.get("quiz_skipped", False) and user_ans.strip():
+                key_words = [w.lower() for w in correct.split() if len(w) > 4]
+                matches = sum(1 for kw in key_words if kw in user_ans.lower())
+                if matches >= max(1, len(key_words) // 3):
+                    score += 1
+
+            is_correct = not st.session_state.get("quiz_skipped", False) and user_ans.strip() and \
+                         sum(1 for kw in [w.lower() for w in correct.split() if len(w) > 4]
+                             if kw in user_ans.lower()) >= max(1, len([w for w in correct.split() if len(w) > 4]) // 3)
+            icon = "✅" if is_correct else "📝"
+
+            st.markdown(f"""
+            <div class="quiz-block">
+                <strong>{icon} Q{i + 1}:</strong> {question}<br>
+                <span style="color: #93c5fd;">Your answer:</span> {user_ans if user_ans else '<em>skipped</em>'}<br>
+                <span style="color: #34d399;">Correct answer:</span> {correct}
+            </div>
+            """, unsafe_allow_html=True)
+
+        if not st.session_state.get("quiz_skipped", False):
+            pct = int((score / total) * 100) if total > 0 else 0
+            emoji = "🏆" if pct >= 80 else "👏" if pct >= 60 else "💪" if pct >= 40 else "📚"
+            st.markdown(f"""
+            <div class="quiz-score-card">
+                <div class="score-big">{score}/{total}</div>
+                <div style="font-size: 1.5rem; margin: 0.5rem 0;">{emoji}</div>
+                <div style="color: rgba(255,255,255,0.7);">{pct}% — {'Excellent!' if pct >= 80 else 'Good job!' if pct >= 60 else 'Keep studying!'}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.progress(pct / 100)
+            # Save best score
+            if "best_score" not in st.session_state:
+                st.session_state.best_score = 0
+            st.session_state.best_score = max(st.session_state.best_score, pct)
+
+        if st.button("🔄 Retake Quiz", type="primary"):
+            st.session_state.quiz_submitted = False
+            st.session_state.quiz_answers = {}
+            st.session_state.quiz_skipped = False
+            st.rerun()
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  POMODORO TIMER — Study timer in the sidebar
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def render_pomodoro_timer():
+    """Render a Pomodoro study timer in the sidebar."""
+    if "pomo_running" not in st.session_state:
+        st.session_state.pomo_running = False
+    if "pomo_seconds" not in st.session_state:
+        st.session_state.pomo_seconds = 25 * 60  # 25 minutes
+    if "pomo_is_break" not in st.session_state:
+        st.session_state.pomo_is_break = False
+    if "pomo_sessions" not in st.session_state:
+        st.session_state.pomo_sessions = 0
+
+    st.markdown("### ⏱️ Pomodoro Timer")
+
+    mins = st.session_state.pomo_seconds // 60
+    secs = st.session_state.pomo_seconds % 60
+    timer_class = "timer-break" if st.session_state.pomo_is_break else (
+        "timer-study" if st.session_state.pomo_running else "timer-idle"
+    )
+    label = "☕ Break" if st.session_state.pomo_is_break else "📖 Study"
+
+    st.markdown(f"""
+    <div class="pomodoro-display">
+        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">{label}</div>
+        <div class="timer-text {timer_class}">{mins:02d}:{secs:02d}</div>
+        <div class="session-count">🔥 Sessions completed: {st.session_state.pomo_sessions}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶️" if not st.session_state.pomo_running else "⏸️", key="pomo_toggle", use_container_width=True):
+            st.session_state.pomo_running = not st.session_state.pomo_running
+    with col2:
+        if st.button("🔄", key="pomo_reset", use_container_width=True):
+            st.session_state.pomo_running = False
+            st.session_state.pomo_seconds = 25 * 60
+            st.session_state.pomo_is_break = False
+            st.rerun()
+    with col3:
+        if st.button("⏭️", key="pomo_skip", use_container_width=True):
+            if st.session_state.pomo_is_break:
+                st.session_state.pomo_seconds = 25 * 60
+                st.session_state.pomo_is_break = False
+            else:
+                st.session_state.pomo_seconds = 5 * 60
+                st.session_state.pomo_is_break = True
+                st.session_state.pomo_sessions += 1
+            st.session_state.pomo_running = False
+            st.rerun()
+
+    # Auto-countdown
+    if st.session_state.pomo_running and st.session_state.pomo_seconds > 0:
+        time.sleep(1)
+        st.session_state.pomo_seconds -= 1
+        if st.session_state.pomo_seconds <= 0:
+            if st.session_state.pomo_is_break:
+                st.session_state.pomo_seconds = 25 * 60
+                st.session_state.pomo_is_break = False
+            else:
+                st.session_state.pomo_sessions += 1
+                st.session_state.pomo_seconds = 5 * 60
+                st.session_state.pomo_is_break = True
+            st.session_state.pomo_running = False
+            st.toast("⏰ Timer finished!" if not st.session_state.pomo_is_break else "☕ Break time!")
+        st.rerun()
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  PROGRESS DASHBOARD — Track study statistics
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def render_progress_dashboard():
+    """Render study progress metrics above the results."""
+    notes_count = st.session_state.get("notes_count", 0)
+    words_processed = st.session_state.get("words_processed", 0)
+    quizzes_taken = st.session_state.get("total_quizzes", 0)
+    best_score = st.session_state.get("best_score", 0)
+
+    st.markdown("""
+    <div class="glass-card" style="padding: 1rem 1.5rem;">
+        <div class="card-title" style="color: #c084fc;">📊 Study Progress</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div style="font-size: 1.5rem;">📝</div>
+            <div class="metric-value">{notes_count}</div>
+            <div class="metric-label">Notes Analyzed</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with m2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div style="font-size: 1.5rem;">📖</div>
+            <div class="metric-value">{words_processed:,}</div>
+            <div class="metric-label">Words Processed</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with m3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div style="font-size: 1.5rem;">🎮</div>
+            <div class="metric-value">{quizzes_taken}</div>
+            <div class="metric-label">Quizzes Taken</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with m4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div style="font-size: 1.5rem;">🏆</div>
+            <div class="metric-value">{best_score}%</div>
+            <div class="metric-label">Best Quiz Score</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  PDF EXPORT — Generate downloadable PDF of results
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def generate_pdf_report(results: dict) -> bytes:
+    """Generate a styled PDF report from the study results."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Title
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.cell(0, 15, "AI Study Notes Summary", ln=True, align="C")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(128, 128, 128)
+    pdf.cell(0, 8, f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", ln=True, align="C")
+    pdf.ln(10)
+
+    # Summary
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "Summary", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 7, results.get("summary", "N/A"))
+    pdf.ln(5)
+
+    # Key Points
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "Key Points", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    for pt in results.get("key_points", []):
+        pdf.multi_cell(0, 7, f"  * {pt}")
+    pdf.ln(5)
+
+    # Important Terms
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "Important Terms", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.multi_cell(0, 7, ", ".join(results.get("terms", [])))
+    pdf.ln(5)
+
+    # Quiz Questions
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "Quiz Questions", ln=True)
+    for i, q in enumerate(results.get("quiz", []), 1):
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.multi_cell(0, 7, f"Q{i}: {q.get('question', '')}")
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 7, f"A: {q.get('answer', '')}")
+        pdf.ln(3)
+
+    # Flashcards
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "Flashcards", ln=True)
+    for i, fc in enumerate(results.get("flashcards", []), 1):
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.multi_cell(0, 7, f"Card {i}: {fc.get('front', '')}")
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 7, f"Answer: {fc.get('back', '')}")
+        pdf.ln(3)
+
+    return pdf.output()
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  GEMINI HELPER — Sends notes to Google AI and parses results
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def get_ai_summary(notes: str) -> dict:
     """
-    Send the user's study notes to OpenAI and get back structured results.
+    Send the user's study notes to Google Gemini and get back structured results.
     Returns a dictionary with: summary, key_points, terms, quiz, flashcards.
     """
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GOOGLE_API_KEY")
+    genai.configure(api_key=api_key)
 
-    # Initialize the OpenAI client
-    client = OpenAI(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
-    # ── The prompt — tells the AI exactly what we want back ──
-    system_prompt = """You are an expert academic study assistant. 
-    When given study notes, you MUST return a valid JSON object with these exact keys:
-    
-    {
-      "summary": "A concise, easy-to-understand summary (3-5 sentences)",
-      "key_points": ["point 1", "point 2", ...],  // 5-7 bullet points
-      "terms": ["term 1", "term 2", ...],  // 8-12 important terms/keywords
-      "quiz": [
-        {"question": "...", "answer": "..."},
-        ...
-      ],  // 5 quiz questions with answers
-      "flashcards": [
-        {"front": "...", "back": "..."},
-        ...
-      ]  // 5 flashcards in Q/A format
-    }
-    
-    Rules:
-    - Keep the summary simple and student-friendly
-    - Key points should capture the most important ideas
-    - Terms should be specific vocabulary or concepts from the notes
-    - Quiz questions should test understanding, not just memorization
-    - Flashcards should help with quick revision
-    - Return ONLY valid JSON, no extra text or markdown
-    """
+    prompt = """You are an expert academic study assistant.
+When given study notes, you MUST return a valid JSON object with these exact keys:
 
-    user_prompt = f"Here are my study notes. Please analyze them:\n\n{notes}"
+{
+  "summary": "A concise, easy-to-understand summary (3-5 sentences)",
+  "key_points": ["point 1", "point 2", ...],
+  "terms": ["term 1", "term 2", ...],
+  "quiz": [
+    {"question": "...", "answer": "..."}
+  ],
+  "flashcards": [
+    {"front": "...", "back": "..."}
+  ]
+}
 
-    # ── Call the OpenAI API ──
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.4,       # Lower = more focused/consistent responses
-        max_tokens=2500,       # Enough room for all sections
-        response_format={"type": "json_object"},  # Force JSON output
+Rules:
+- 5-7 key points
+- 8-12 important terms
+- 5 quiz questions with answers
+- 5 flashcards
+- Keep it student-friendly
+- Return ONLY valid JSON, no extra text or markdown code fences
+
+Here are my study notes:
+
+""" + notes
+
+    response = model.generate_content(
+        prompt,
+        generation_config=genai.types.GenerationConfig(
+            temperature=0.4,
+            response_mime_type="application/json",
+        ),
     )
 
-    # Parse the JSON response
-    result = json.loads(response.choices[0].message.content)
+    result = json.loads(response.text)
     return result
 
 
@@ -612,7 +1033,7 @@ def render_sidebar():
                 '<div style="background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.3); '
                 'border-radius: 10px; padding: 0.6rem 1rem; text-align: center; margin-bottom: 1rem;">'
                 '🟢 <strong style="color: #34d399;">AI Mode Active</strong><br>'
-                '<span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Using OpenAI GPT-4o-mini</span></div>',
+                '<span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Using Google Gemini (Free)</span></div>',
                 unsafe_allow_html=True,
             )
         else:
@@ -634,6 +1055,9 @@ def render_sidebar():
             "🔑 Important terms & keywords",
             "❓ Quiz questions for revision",
             "🃏 Flashcards for quick study",
+            "📄 PDF/DOCX/TXT upload",
+            "🎮 Interactive quiz mode",
+            "📥 PDF export",
         ]
         for f in features:
             st.markdown(
@@ -662,19 +1086,25 @@ def render_sidebar():
 
         if not api_available:
             st.markdown("---")
-            st.markdown("### 🔑 Enable AI Mode")
+            st.markdown("### 🔑 Enable AI Mode (Free!)")
             st.markdown("""
             To use real AI summarization:
-            1. Get a key from [OpenAI](https://platform.openai.com/api-keys)
-            2. Create a `.env` file in the project folder
-            3. Add: `OPENAI_API_KEY=sk-...`
-            4. Restart the app
+            1. Go to [aistudio.google.com](https://aistudio.google.com/apikey)
+            2. Click **"Create API Key"** (it's free!)
+            3. Create a `.env` file in the project folder
+            4. Add: `GOOGLE_API_KEY=your_key_here`
+            5. Restart the app
             """)
+
+        st.markdown("---")
+
+        # ── Pomodoro Timer ──
+        render_pomodoro_timer()
 
         st.markdown("---")
         st.markdown(
             "<p style='text-align: center; color: rgba(255,255,255,0.3); font-size: 0.75rem;'>"
-            "v1.0 · Made with ❤️ for students</p>",
+            "v2.0 · Made with ❤️ for students</p>",
             unsafe_allow_html=True,
         )
 
@@ -705,17 +1135,40 @@ def main():
         st.session_state.results = None
     if "notes_input" not in st.session_state:
         st.session_state.notes_input = ""
+    if "notes_count" not in st.session_state:
+        st.session_state.notes_count = 0
+    if "words_processed" not in st.session_state:
+        st.session_state.words_processed = 0
+
+    # ── Progress Dashboard ──
+    render_progress_dashboard()
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
     # ── Notes Input Section ──
     st.markdown(
         '<p style="color: rgba(255,255,255,0.7); font-size: 1.1rem; font-weight: 600; '
-        'margin-bottom: 0.5rem;">📋 Paste your study notes below</p>',
+        'margin-bottom: 0.5rem;">📋 Paste your study notes or upload a file</p>',
         unsafe_allow_html=True,
     )
 
+    # ── File Upload ──
+    uploaded_file = st.file_uploader(
+        "Upload study notes",
+        type=["pdf", "docx", "txt"],
+        label_visibility="collapsed",
+        help="Upload a PDF, Word document, or text file",
+    )
+
+    file_text = ""
+    if uploaded_file is not None:
+        file_text = extract_text_from_file(uploaded_file)
+        if file_text:
+            st.success(f"✅ Extracted {len(file_text.split())} words from **{uploaded_file.name}**")
+
     notes = st.text_area(
         label="Study Notes",
-        height=250,
+        height=200,
+        value=file_text if file_text else "",
         placeholder="Paste your lecture notes, textbook excerpts, or study material here...",
         key="notes_area",
         label_visibility="collapsed",
@@ -772,10 +1225,14 @@ def main():
 
                     st.session_state.results = results
 
+                    # Track progress stats
+                    st.session_state.notes_count += 1
+                    st.session_state.words_processed += len(notes.split())
+
                     if use_ai:
                         st.success("✅ Your notes have been summarized using AI!")
                     else:
-                        st.success("✅ Demo results generated! Add an OpenAI API key for real AI summaries.")
+                        st.success("✅ Demo results generated! Add a free Google API key for real AI summaries.")
 
                 except json.JSONDecodeError:
                     st.error("❌ The AI returned an unexpected format. Please try again.")
@@ -786,40 +1243,62 @@ def main():
     if st.session_state.results:
         results = st.session_state.results
 
-        # ── Summary & Key Points — side by side ──
-        left, right = st.columns(2)
+        # ── Tabbed Results View ──
+        tab1, tab2, tab3 = st.tabs(["📝 Results", "🎮 Interactive Quiz", "📥 Export"])
 
-        with left:
-            render_summary_card(results.get("summary", "No summary available."))
+        with tab1:
+            # ── Summary & Key Points — side by side ──
+            left, right = st.columns(2)
+            with left:
+                render_summary_card(results.get("summary", "No summary available."))
+            with right:
+                render_keypoints_card(results.get("key_points", []))
 
-        with right:
-            render_keypoints_card(results.get("key_points", []))
+            # ── Important Terms ──
+            render_terms_card(results.get("terms", []))
 
-        # ── Important Terms ──
-        render_terms_card(results.get("terms", []))
+            # ── Quiz & Flashcards — side by side ──
+            left2, right2 = st.columns(2)
+            with left2:
+                render_quiz_card(results.get("quiz", []))
+            with right2:
+                render_flashcards(results.get("flashcards", []))
 
-        # ── Quiz & Flashcards — side by side ──
-        left2, right2 = st.columns(2)
+        with tab2:
+            # ── Interactive Quiz Mode ──
+            render_interactive_quiz(results.get("quiz", []))
 
-        with left2:
-            render_quiz_card(results.get("quiz", []))
+        with tab3:
+            # ── PDF Export ──
+            st.markdown("""
+            <div class="glass-card">
+                <div class="card-title" style="color: #60a5fa;">📥 Export Your Study Notes</div>
+                <div class="card-content">
+                    Download a formatted PDF with all your summarized notes, key points, quiz questions, and flashcards.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        with right2:
-            render_flashcards(results.get("flashcards", []))
+            pdf_bytes = generate_pdf_report(results)
+            st.download_button(
+                label="📥 Download PDF Report",
+                data=pdf_bytes,
+                file_name=f"study_notes_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )
 
-        # ── Divider ──
-        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-
-        # ── Copy Results Section ──
-        with st.expander("📋 Copy All Results (Plain Text)", expanded=False):
-            copy_text = build_copy_text(results)
-            st.code(copy_text, language=None)
+            # ── Copy Results Section ──
+            with st.expander("📋 Copy All Results (Plain Text)", expanded=False):
+                copy_text = build_copy_text(results)
+                st.code(copy_text, language=None)
 
     # ── Footer ──
     st.markdown("""
     <div class="app-footer">
         🧠 AI Study Notes Summarizer · Built for students using AI<br>
-        <span style="font-size: 0.75rem;">Powered by OpenAI · Made with Streamlit</span>
+        <span style="font-size: 0.75rem;">Powered by Google Gemini · Made with Streamlit</span>
     </div>
     """, unsafe_allow_html=True)
 
